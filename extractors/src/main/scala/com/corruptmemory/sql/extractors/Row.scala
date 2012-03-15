@@ -1,4 +1,6 @@
-package com.corruptmemory.extractors
+package com.corruptmemory.sql.extractors
+
+import com.corruptmemory.sql.utils._
 
 import java.sql.ResultSet
 import scalaz._

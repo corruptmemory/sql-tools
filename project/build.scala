@@ -67,13 +67,30 @@ object KickassServiceBuild extends Build {
 
   lazy val sqlTools = Project("sql-tools",
                               file("."),
-                              settings = buildSettings ++ Seq(name := "Primative SQL tools")) aggregate (extractors)
+                              settings = buildSettings ++ Seq(name := "Primative SQL tools")) aggregate (extractors,jdbc,utils)
 
   val extractorsDeps = Seq(scalaz,jodaTime,jodaConvert)
   lazy val extractors = namedSubProject("JDBC Extractors",
-                                   "extractors",
-                                   file("extractors"),
+                                        "extractors",
+                                        file("extractors"),
+                                        Seq(scalacOptions ++= Seq("-deprecation", "-unchecked"),
+                                            libraryDependencies := extractorsDeps,
+                                            resolvers ++= allResolvers)) dependsOn(utils)
+
+  val jdbcDeps = Seq(scalaz,jodaTime,jodaConvert)
+  lazy val jdbc = namedSubProject("JDBC Resource Helpers",
+                                  "jdbc",
+                                  file("jdbc"),
+                                  Seq(scalacOptions ++= Seq("-deprecation", "-unchecked"),
+                                      libraryDependencies := jdbcDeps,
+                                      resolvers ++= allResolvers)) dependsOn(utils)
+
+  val utilsDeps = Seq(scalaz,jodaTime,jodaConvert)
+  lazy val utils = namedSubProject("SQL Utilities",
+                                   "utils",
+                                   file("utils"),
                                    Seq(scalacOptions ++= Seq("-deprecation", "-unchecked"),
-                                       libraryDependencies := extractorsDeps,
+                                       libraryDependencies := utilsDeps,
                                        resolvers ++= allResolvers))
+
 }

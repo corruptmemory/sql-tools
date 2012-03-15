@@ -1,4 +1,6 @@
-package com.corruptmemory.extractors
+package com.corruptmemory.sql.extractors
+
+import com.corruptmemory.sql.utils._
 
 import java.sql.{Array => SqlAry, Blob, Clob, NClob, Date, Time, Timestamp, Ref, RowId, SQLXML}
 import java.io.{InputStream,Reader => JavaReader}
