@@ -14,6 +14,7 @@ package object utils {
   case class Caught(message:String,exception:Exception) extends Error with CheckError
   case class Uncaught(exception:Exception) extends Error with CheckError
   case class KeyedMessage(key:String,message:String) extends Error
+  case class KeyedCaught(key:String,message:String,exception:Exception) extends Error
 
   object DBResult {
     def rolledback[X](v:String):DBResult[X] = Rolledback(v).asInstanceOf[Error].failNel[X]
@@ -21,6 +22,7 @@ package object utils {
     def caught[X](m:String,e:Exception):DBResult[X] = Caught(m,e).asInstanceOf[Error].failNel[X]
     def uncaught[X](e:Exception):DBResult[X] = Uncaught(e).asInstanceOf[Error].failNel[X]
     def keyedMessage[X](key:String,message:String):DBResult[X] = KeyedMessage(key,message).asInstanceOf[Error].failNel[X]
+    def keyedCaught[X](key:String,message:String,exception:Exception):DBResult[X] = KeyedCaught(key,message,exception).asInstanceOf[Error].failNel[X]
     def safeBracket[T](b: => T):DBResult[T] = try {
       b.successNel
     } catch { case e:Exception => uncaught(e) }
