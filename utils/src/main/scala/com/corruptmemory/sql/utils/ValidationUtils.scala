@@ -1,11 +1,13 @@
 package com.corruptmemory.sql.utils
 
 import scalaz._
+import std.option._
 import syntax.validation._
 import syntax.std.optionV._
+import syntax.id._
 import scala.util.control.Exception._
 
-class Checker[T](val key:String,testRunner:Vector[Checker.CheckFunc[T]] => (=> T) => CheckResult[T] = Checker.defaultRunTests) { self =>
+class Checker[T](val key:String,testRunner:Vector[Checker.CheckFunc[T]] => T => CheckResult[T] = Checker.defaultRunTests) { self =>
   import CheckResult._
   import Checker._
   val tests:Vector[CheckFunc[T]] = Vector()
@@ -18,18 +20,18 @@ object Checker {
   import CheckResult._
   type CheckFunc[T] = T => CheckResult[T]
 
-  def defaultRunTests[T]:Vector[CheckFunc[T]] => (=> T) => CheckResult[T] =
+  def defaultRunTests[T]:Vector[CheckFunc[T]] => T => CheckResult[T] =
     tests => v => (((tests.view map (x => safeVBracket(x(v)))) filter (_.isFailure)).foldLeft(v.successNel[CheckError]){(s,v1) => s ap CheckResult.constAp(v1)})
 
-  def noNullRunTests[T <: AnyRef]:Vector[CheckFunc[T]] => (=> T) => CheckResult[T] =
+  def noNullRunTests[T <: AnyRef]:Vector[CheckFunc[T]] => T => CheckResult[T] =
     tests => v => if (v == null) message("Cannot be null")
                   else defaultRunTests(tests)(v)
 
-  def nullableRunTests[T <: AnyRef]:Vector[CheckFunc[T]] => (=> T) => CheckResult[T] =
+  def nullableRunTests[T <: AnyRef]:Vector[CheckFunc[T]] => T => CheckResult[T] =
     tests => v => if (v == null) v.successNel
                   else defaultRunTests(tests)(v)
 
-  def optionRunTests[T <: Option[X] forSome {type X;}]:Vector[CheckFunc[T]] => (=> T) => CheckResult[T] =
+  def optionRunTests[T <: Option[X] forSome {type X;}]:Vector[CheckFunc[T]] => T => CheckResult[T] =
     noNullRunTests
 
   def test[T](msg:String,p:T => Boolean):CheckFunc[T] =
@@ -56,15 +58,18 @@ trait Checkers {
     else message(msg)
   }
 
+  def notEmpty[T,F[_]](f:F[T] => Boolean,msg:String = "Cannot be empty"):CheckFunc[F[T]] =
+    v => if (f(v)) message(msg) else v.successNel
+
+  def setNotEmpty[T](msg:String = "Cannot be empty"):CheckFunc[Set[T]] = notEmpty[T,Set](_.isEmpty,msg)
+  def seqNotEmpty[T,S[_] <: Seq[_]](msg:String = "Cannot be empty"):CheckFunc[S[T]] = notEmpty[T,S](_.isEmpty,msg)
+
   def requiredOptionCheck[T](key:String):Checker[Option[T]] = checkerNotNull(key) ++ notNone()
 
-  def nonEmptyOptionCheck(key:String):Checker[Option[String]] = requiredOptionCheck(key) ++ mapTest(s => required()(s))
+  def nonEmptyOptionCheck(key:String):Checker[Option[String]] = requiredOptionCheck(key) ++ mapTest[String,Option](required())
 
-  def mapTest[T](f:(=> T) => CheckResult[T]):CheckFunc[Option[T]] = { value =>
-    value.fold(some = t => f(t).fold(success = s => Some(s).successNel,
-                                     failure = f => f.fail),
-               none = None.successNel)
-  }
+  def mapTest[T,F[_]](f:T => CheckResult[T])(implicit t:Traverse[F]):CheckFunc[F[T]] =
+    value => t.traverse(value)(f)
 
   def email(msg:String = "Not a valid email address"):CheckFunc[String] = _ match {
     case emailRegex(em) => em.successNel
