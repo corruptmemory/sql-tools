@@ -56,6 +56,10 @@ trait Checkers {
     else message(msg)
   }
 
+  def requiredOptionCheck[T](key:String):Checker[Option[T]] = checkerNotNull(key) ++ notNone()
+
+  def nonEmptyOptionCheck(key:String):Checker[Option[String]] = requiredOptionCheck(key) ++ mapTest(s => required()(s))
+
   def mapTest[T](f:(=> T) => CheckResult[T]):CheckFunc[Option[T]] = { value =>
     value.fold(some = t => f(t).fold(success = s => Some(s).successNel,
                                      failure = f => f.fail),
