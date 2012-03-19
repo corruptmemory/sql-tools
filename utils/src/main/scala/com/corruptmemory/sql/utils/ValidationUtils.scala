@@ -2,6 +2,7 @@ package com.corruptmemory.sql.utils
 
 import scalaz._
 import syntax.validation._
+import syntax.std.optionV._
 import scala.util.control.Exception._
 
 class Checker[T](val key:String,testRunner:Vector[Checker.CheckFunc[T]] => (=> T) => CheckResult[T] = Checker.defaultRunTests) { self =>
@@ -28,13 +29,15 @@ object Checker {
     tests => v => if (v == null) v.successNel
                   else defaultRunTests(tests)(v)
 
+  def optionRunTests[T <: Option[X] forSome {type X;}]:Vector[CheckFunc[T]] => (=> T) => CheckResult[T] =
+    noNullRunTests
+
   def test[T](msg:String,p:T => Boolean):CheckFunc[T] =
     value => if (p(value)) value.successNel else message(msg)
 
   // TODO: No, need to replace this
   val emailRegex = """([\w-]+(?:\.[\w-]+)*@(?:[\w-]+\.)+\w{2,7})\b""".r
 }
-
 
 trait Checkers {
   import CheckResult._
@@ -46,6 +49,17 @@ trait Checkers {
   def required(msg:String = "Required"):CheckFunc[String] = { value =>
     val v = value.trim()
     if (!v.isEmpty) v.successNel else message(msg)
+  }
+
+  def notNone[T](msg:String = "Cannot be none"):CheckFunc[Option[T]] = { value =>
+    if (value.isDefined) value.successNel
+    else message(msg)
+  }
+
+  def mapTest[T](f:(=> T) => CheckResult[T]):CheckFunc[Option[T]] = { value =>
+    value.fold(some = t => f(t).fold(success = s => Some(s).successNel,
+                                     failure = f => f.fail),
+               none = None.successNel)
   }
 
   def email(msg:String = "Not a valid email address"):CheckFunc[String] = _ match {
